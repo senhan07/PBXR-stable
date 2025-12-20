@@ -1,0 +1,5 @@
+{
+  "name": "PBXR - Manage your monitoring targets",
+  "description": "A comprehensive management suite for Prometheus Blackbox Exporter targets, probers, and metrics with AI-assisted configuration.",
+  "requestFramePermissions": []
+}
