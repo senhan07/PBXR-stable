@@ -1176,9 +1176,9 @@ export const TargetManagement: React.FC<Props> = ({
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Assigned Probers</label>
-                        <div className="flex flex-wrap gap-2 p-2.5 bg-[#18181b] border border-white/10 rounded-lg max-h-32 overflow-y-auto">
+                        <div className="grid grid-cols-3 gap-2 p-2.5 bg-[#18181b] border border-white/10 rounded-lg max-h-32 overflow-y-auto">
                             {probers.map(p => (
-                            <label key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer border transition-all w-full ${selectedProbers.includes(p.id) ? 'bg-blue-600/10 border-blue-500/50 text-blue-100' : 'bg-transparent border-white/10 text-gray-400 hover:border-white/20'}`}>
+                            <label key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer border transition-all ${selectedProbers.includes(p.id) ? 'bg-blue-600/10 border-blue-500/50 text-blue-100' : 'bg-transparent border-white/10 text-gray-400 hover:border-white/20'}`}>
                                 <input type="checkbox" checked={selectedProbers.includes(p.id)} onChange={(e) => { if (e.target.checked) setSelectedProbers([...selectedProbers, p.id]); else setSelectedProbers(selectedProbers.filter(id => id !== p.id)); }} className="appearance-none w-3.5 h-3.5 border border-gray-600 rounded checked:bg-blue-500 checked:border-blue-500" />
                                 <span className="text-xs font-medium">{p.name}</span>
                             </label>
