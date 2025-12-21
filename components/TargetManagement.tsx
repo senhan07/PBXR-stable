@@ -229,11 +229,12 @@ export const TargetManagement: React.FC<Props> = ({
       const target = event.target as Node;
 
       // Do NOT clear selection if click is inside the main table, the bulk actions bar,
-      // or the custom select dropdown portal.
+      // the custom select dropdown portal, or any modal.
       if (
         (tableContainerRef.current && tableContainerRef.current.contains(target)) ||
         (bulkBarRef.current && bulkBarRef.current.contains(target)) ||
-        (target as HTMLElement).closest('[data-custom-select-portal]')
+        (target as HTMLElement).closest('[data-custom-select-portal]') ||
+        (target as HTMLElement).closest('#modal-root')
       ) {
         return;
       }
