@@ -225,6 +225,11 @@ export const TargetManagement: React.FC<Props> = ({
   // --- Click Outside to Clear Selection ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // De-select if any modals are open, as the click is likely on the overlay
+      if (isBulkMoveOpen || isBulkAssignOpen || isAdding || viewingTarget || deleteConfirmationId || isGroupModalOpen || folderToDelete) {
+          return;
+      }
+
       if (selectedIds.size === 0) return;
       const target = event.target as Node;
       
@@ -233,9 +238,6 @@ export const TargetManagement: React.FC<Props> = ({
       // Check if click is inside bulk actions bar
       if (bulkBarRef.current && bulkBarRef.current.contains(target)) return;
       
-      // Ignore clicks on portals/modals by checking if they are in the root
-      if (document.getElementById('modal-root')?.contains(target)) return;
-
       // Also ignore clicks on our custom select portal, as it's outside the modal-root
       if ((target as HTMLElement).closest('[data-custom-select-portal]')) return;
 
@@ -243,7 +245,7 @@ export const TargetManagement: React.FC<Props> = ({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedIds]);
+  }, [selectedIds, isBulkMoveOpen, isBulkAssignOpen, isAdding, viewingTarget, deleteConfirmationId, isGroupModalOpen, folderToDelete]);
 
   // --- Grouping Options (Dynamic) ---
   const dynamicGroupOptions = useMemo(() => {
@@ -511,9 +513,9 @@ export const TargetManagement: React.FC<Props> = ({
                       url: t.url || existing.url,
                       // module: only update if provided explicitly
                       module: t.module !== undefined && t.module !== null ? t.module : existing.module,
-                      // Keep existing proberIds/labels/groupId unless import explicitly provides them (but we prefer to ignore them)
+                      // Keep existing proberIds/groupId but allow labels to be updated from import
                       proberIds: existing.proberIds || [],
-                      labels: existing.labels || [],
+                      labels: t.labels || existing.labels || [],
                       groupId: existing.groupId,
                       updatedAt: now
                   };
