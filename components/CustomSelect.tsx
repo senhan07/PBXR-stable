@@ -66,6 +66,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ options, value, onCh
   const dropdown = (
     <div 
         ref={dropdownRef}
+        data-custom-select-portal
         className="absolute z-[9999] bg-[#18181b] border border-white/10 rounded-lg shadow-2xl max-h-60 overflow-y-auto animate-slide-up"
         style={{ 
             top: `${coords.top}px`, 

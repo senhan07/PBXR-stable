@@ -149,8 +149,8 @@ export const TargetManagement: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'folders'>('all');
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
-  const [folderViewMode, setFolderViewMode] = useState<'grid' | 'list'>('grid');
-  const [viewDensity, setViewDensity] = useState<'comfortable' | 'compact'>('comfortable');
+  const [folderViewMode, setFolderViewMode] = useState<'grid' | 'list'>('list');
+  const [viewDensity, setViewDensity] = useState<'comfortable' | 'compact'>('compact');
 
   const [isAdding, setIsAdding] = useState(false);
   const [viewingTarget, setViewingTarget] = useState<Target | null>(null);
@@ -227,17 +227,22 @@ export const TargetManagement: React.FC<Props> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (selectedIds.size === 0) return;
       const target = event.target as Node;
-      
-      // Check if click is inside table container
-      if (tableContainerRef.current && tableContainerRef.current.contains(target)) return;
-      // Check if click is inside bulk actions bar
-      if (bulkBarRef.current && bulkBarRef.current.contains(target)) return;
-      
-      // Ignore clicks on portals/modals by checking if they are in the root
-      if (document.getElementById('modal-root')?.contains(target)) return;
 
+      // Do NOT clear selection if click is inside the main table, the bulk actions bar,
+      // the custom select dropdown portal, or any modal.
+      if (
+        (tableContainerRef.current && tableContainerRef.current.contains(target)) ||
+        (bulkBarRef.current && bulkBarRef.current.contains(target)) ||
+        (target as HTMLElement).closest('[data-custom-select-portal]') ||
+        (target as HTMLElement).closest('#modal-root')
+      ) {
+        return;
+      }
+
+      // If the click is anywhere else, clear the selection.
       setSelectedIds(new Set());
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [selectedIds]);
@@ -295,6 +300,7 @@ export const TargetManagement: React.FC<Props> = ({
       result = result.filter(t => 
         t.name.toLowerCase().includes(q) || 
         t.url.toLowerCase().includes(q) ||
+        t.module.toLowerCase().includes(q) ||
         t.labels.some(l => `${l.key}=${l.value}`.toLowerCase().includes(q) || l.key.includes(q) || l.value.includes(q))
       );
     }
@@ -497,36 +503,39 @@ export const TargetManagement: React.FC<Props> = ({
           const toCreate: Target[] = [];
           const toUpdate: Target[] = [];
 
+          const isValidLabel = (l: any): l is Label => {
+            return l && typeof l.key === 'string' && l.key && typeof l.value === 'string';
+          };
+
           incoming.forEach((t: any) => {
-              // find existing by id if provided
+              const importedLabels = Array.isArray(t.labels) ? t.labels.filter(isValidLabel) : undefined;
               const existing = t.id ? targets.find(x => x.id === t.id) : null;
+
               if (existing) {
-                  // Update existing: only overwrite fields that are present in import (name/url/module)
                   const updated: Target = {
                       ...existing,
                       name: t.name || existing.name,
                       url: t.url || existing.url,
-                      // module: only update if provided explicitly
-                      module: t.module !== undefined && t.module !== null ? t.module : existing.module,
-                      // Keep existing proberIds/labels/groupId unless import explicitly provides them (but we prefer to ignore them)
+                      module: t.module !== undefined ? t.module : existing.module,
+                      // Overwrite labels only if the key is present in the import, otherwise keep existing
+                      labels: importedLabels !== undefined ? importedLabels : (existing.labels || []),
+                      // Preserve existing probers and group
                       proberIds: existing.proberIds || [],
-                      labels: existing.labels || [],
                       groupId: existing.groupId,
                       updatedAt: now
                   };
                   toUpdate.push(updated);
               } else {
-                  // Create new target: ignore incoming id, groupId, proberIds, labels, created/updated timestamps
                   const created: Target = {
                       id: uuid(),
                       name: t.name,
                       url: t.url,
                       module: t.module || 'http_2xx',
-                      proberIds: [],
-                      labels: [],
-                      groupId: undefined,
+                      proberIds: [], // Do not import probers for new targets
+                      labels: importedLabels || [],
+                      groupId: undefined, // Do not import group for new targets
                       status: 'unknown',
-                      enabled: t.enabled ?? false,
+                      enabled: t.enabled ?? false, // Default to disabled if not specified
                       createdAt: now,
                       updatedAt: now
                   };
@@ -756,10 +765,10 @@ export const TargetManagement: React.FC<Props> = ({
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex bg-[#18181b] p-1 rounded-lg border border-white/10">
-                        <button onClick={() => setFolderViewMode('grid')} className={`p-1.5 rounded transition-all ${folderViewMode === 'grid' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
+                        <button title="Grid View" onClick={() => setFolderViewMode('grid')} className={`p-1.5 rounded transition-all ${folderViewMode === 'grid' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
                             <LayoutGrid className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setFolderViewMode('list')} className={`p-1.5 rounded transition-all ${folderViewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
+                        <button title="List View" onClick={() => setFolderViewMode('list')} className={`p-1.5 rounded transition-all ${folderViewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
                             <LayoutList className="w-4 h-4" />
                         </button>
                     </div>
@@ -822,7 +831,7 @@ export const TargetManagement: React.FC<Props> = ({
                     <input 
                     ref={searchInputRef}
                     type="text"
-                    placeholder="Search by name, url, or label..."
+                    placeholder="Search by name, url, module, or label..."
                     value={localSearch}
                     onChange={(e) => { setLocalSearch(e.target.value); setCurrentPage(1); }}
                     className="w-full bg-[#18181b] border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 focus:border-blue-500 transition-colors"
@@ -870,6 +879,7 @@ export const TargetManagement: React.FC<Props> = ({
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Folder</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Probers</th>
+                        <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Module</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Labels</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Action</th>
                     </tr>
@@ -939,6 +949,9 @@ export const TargetManagement: React.FC<Props> = ({
                                 return <div key={pid} className="w-6 h-6 rounded bg-[#18181b] border border-white/10 flex items-center justify-center text-[10px] font-bold text-gray-400 ring-2 ring-[#050507]" title={prob?.name}>{prob?.name.charAt(0)}</div>;
                                 })}
                             </div>
+                            </td>
+                            <td className={`px-6 ${rowPadding}`}>
+                                <span className="px-2 py-0.5 bg-[#111] border border-white/10 rounded text-[10px] text-gray-400 font-mono">{t.module}</span>
                             </td>
                             <td className={`px-6 ${rowPadding}`}>
                             <div className="flex flex-wrap gap-1">
