@@ -149,8 +149,8 @@ export const TargetManagement: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'folders'>('all');
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
-  const [folderViewMode, setFolderViewMode] = useState<'grid' | 'list'>('grid');
-  const [viewDensity, setViewDensity] = useState<'comfortable' | 'compact'>('comfortable');
+  const [folderViewMode, setFolderViewMode] = useState<'grid' | 'list'>('list');
+  const [viewDensity, setViewDensity] = useState<'comfortable' | 'compact'>('compact');
 
   const [isAdding, setIsAdding] = useState(false);
   const [viewingTarget, setViewingTarget] = useState<Target | null>(null);
@@ -764,10 +764,10 @@ export const TargetManagement: React.FC<Props> = ({
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex bg-[#18181b] p-1 rounded-lg border border-white/10">
-                        <button onClick={() => setFolderViewMode('grid')} className={`p-1.5 rounded transition-all ${folderViewMode === 'grid' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
+                        <button title="Grid View" onClick={() => setFolderViewMode('grid')} className={`p-1.5 rounded transition-all ${folderViewMode === 'grid' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
                             <LayoutGrid className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setFolderViewMode('list')} className={`p-1.5 rounded transition-all ${folderViewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
+                        <button title="List View" onClick={() => setFolderViewMode('list')} className={`p-1.5 rounded transition-all ${folderViewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
                             <LayoutList className="w-4 h-4" />
                         </button>
                     </div>
@@ -878,6 +878,7 @@ export const TargetManagement: React.FC<Props> = ({
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Folder</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Probers</th>
+                        <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Module</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Labels</th>
                         <th className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Action</th>
                     </tr>
@@ -947,6 +948,9 @@ export const TargetManagement: React.FC<Props> = ({
                                 return <div key={pid} className="w-6 h-6 rounded bg-[#18181b] border border-white/10 flex items-center justify-center text-[10px] font-bold text-gray-400 ring-2 ring-[#050507]" title={prob?.name}>{prob?.name.charAt(0)}</div>;
                                 })}
                             </div>
+                            </td>
+                            <td className={`px-6 ${rowPadding}`}>
+                                <span className="text-sm text-gray-300 font-mono">{t.module}</span>
                             </td>
                             <td className={`px-6 ${rowPadding}`}>
                             <div className="flex flex-wrap gap-1">
