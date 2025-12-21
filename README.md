@@ -30,7 +30,7 @@ Run the container, mounting a local folder to persist the database file.
 ```bash
 docker run -d \
   -p 3000:3000 \
-  -v $(pwd)/data:/usr/src/app \
+  -v $(pwd)/data:/usr/src/app/data \
   --name pbxr \
   pbxr
 ```
@@ -39,7 +39,7 @@ docker run -d \
 ```powershell
 docker run -d `
   -p 3000:3000 `
-  -v ${PWD}/data:/usr/src/app `
+  -v ${PWD}/data:/usr/src/app/data `
   --name pbxr `
   pbxr
 ```
