@@ -236,6 +236,9 @@ export const TargetManagement: React.FC<Props> = ({
       // Ignore clicks on portals/modals by checking if they are in the root
       if (document.getElementById('modal-root')?.contains(target)) return;
 
+      // Also ignore clicks on our custom select portal, as it's outside the modal-root
+      if ((target as HTMLElement).closest('[data-custom-select-portal]')) return;
+
       setSelectedIds(new Set());
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -516,14 +519,14 @@ export const TargetManagement: React.FC<Props> = ({
                   };
                   toUpdate.push(updated);
               } else {
-                  // Create new target: ignore incoming id, groupId, proberIds, labels, created/updated timestamps
+                  // Create new target: ignore incoming id, groupId, proberIds, created/updated timestamps
                   const created: Target = {
                       id: uuid(),
                       name: t.name,
                       url: t.url,
                       module: t.module || 'http_2xx',
                       proberIds: [],
-                      labels: [],
+                      labels: t.labels || [],
                       groupId: undefined,
                       status: 'unknown',
                       enabled: t.enabled ?? false,
