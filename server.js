@@ -512,6 +512,45 @@ app.post('/api/users/:id/sessions/revoke', async (req, res) => {
   }
 });
 
+// API: verify a user's current password
+app.post('/api/users/:id/verify-password', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ error: 'Missing password' });
+
+    const db = await dbPromise;
+    const row = await db.get('SELECT value FROM kv_store WHERE key = ?', 'app_state');
+    if (!row) return res.status(404).json({ error: 'App state not found' });
+    const state = JSON.parse(row.value);
+    const user = (state.users || []).find(u => u.id === userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const stored = user.password || '';
+    let ok = false;
+    try {
+      if (stored.startsWith('scrypt$')) {
+        const parts = stored.split('$');
+        const salt = parts[1];
+        const hash = parts[2];
+        const derived = crypto.scryptSync(password, salt, 64).toString('hex');
+        ok = crypto.timingSafeEqual(Buffer.from(derived, 'hex'), Buffer.from(hash, 'hex'));
+      } else {
+        // legacy plaintext
+        ok = stored === password;
+      }
+    } catch (e) {
+      console.error('Password verification error', e);
+      return res.status(500).json({ error: 'Verification error' });
+    }
+
+    res.json({ success: ok });
+  } catch (err) {
+    console.error('Error during password verification:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Fallback to index.html for SPA routing
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));

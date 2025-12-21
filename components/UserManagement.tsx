@@ -121,16 +121,30 @@ export const UserManagement: React.FC<Props> = ({ users, onAdd, onUpdate, onDele
     setIsAdding(false);
   };
 
-  const handlePasswordReset = () => {
+  const handlePasswordReset = async () => {
     setError('');
     if (!resettingUserId || !newPassword) return;
     if (newPassword !== confirmResetPassword) { setError('Passwords do not match.'); return; }
 
-    // If changing own password, verify current password
+    // If changing own password, verify current password via API
     if (resettingUserId === currentUserId) {
-        const currentUser = users.find(u => u.id === currentUserId);
         if (!currentPassword) { setError('Current password is required.'); return; }
-        if (currentUser && currentUser.password !== currentPassword) { setError('Incorrect current password.'); return; }
+        try {
+            const res = await fetch(`/api/users/${currentUserId}/verify-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: currentPassword })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                setError('Incorrect current password.');
+                return;
+            }
+        } catch (err) {
+            console.error('Password verification failed', err);
+            setError('An error occurred during verification.');
+            return;
+        }
     }
 
     const policyError = validatePassword(newPassword);
