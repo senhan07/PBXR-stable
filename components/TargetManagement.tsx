@@ -225,27 +225,26 @@ export const TargetManagement: React.FC<Props> = ({
   // --- Click Outside to Clear Selection ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // De-select if any modals are open, as the click is likely on the overlay
-      if (isBulkMoveOpen || isBulkAssignOpen || isAdding || viewingTarget || deleteConfirmationId || isGroupModalOpen || folderToDelete) {
-          return;
-      }
-
       if (selectedIds.size === 0) return;
       const target = event.target as Node;
-      
-      // Check if click is inside table container
-      if (tableContainerRef.current && tableContainerRef.current.contains(target)) return;
-      // Check if click is inside bulk actions bar
-      if (bulkBarRef.current && bulkBarRef.current.contains(target)) return;
-      
-      // Also ignore clicks on our custom select portal, as it's outside the modal-root
-      if ((target as HTMLElement).closest('[data-custom-select-portal]')) return;
 
+      // Do NOT clear selection if click is inside the main table, the bulk actions bar,
+      // or the custom select dropdown portal.
+      if (
+        (tableContainerRef.current && tableContainerRef.current.contains(target)) ||
+        (bulkBarRef.current && bulkBarRef.current.contains(target)) ||
+        (target as HTMLElement).closest('[data-custom-select-portal]')
+      ) {
+        return;
+      }
+
+      // If the click is anywhere else, clear the selection.
       setSelectedIds(new Set());
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedIds, isBulkMoveOpen, isBulkAssignOpen, isAdding, viewingTarget, deleteConfirmationId, isGroupModalOpen, folderToDelete]);
+  }, [selectedIds]);
 
   // --- Grouping Options (Dynamic) ---
   const dynamicGroupOptions = useMemo(() => {
@@ -502,36 +501,39 @@ export const TargetManagement: React.FC<Props> = ({
           const toCreate: Target[] = [];
           const toUpdate: Target[] = [];
 
+          const isValidLabel = (l: any): l is Label => {
+            return l && typeof l.key === 'string' && l.key && typeof l.value === 'string';
+          };
+
           incoming.forEach((t: any) => {
-              // find existing by id if provided
+              const importedLabels = Array.isArray(t.labels) ? t.labels.filter(isValidLabel) : undefined;
               const existing = t.id ? targets.find(x => x.id === t.id) : null;
+
               if (existing) {
-                  // Update existing: only overwrite fields that are present in import (name/url/module)
                   const updated: Target = {
                       ...existing,
                       name: t.name || existing.name,
                       url: t.url || existing.url,
-                      // module: only update if provided explicitly
-                      module: t.module !== undefined && t.module !== null ? t.module : existing.module,
-                      // Keep existing proberIds/groupId but allow labels to be updated from import
+                      module: t.module !== undefined ? t.module : existing.module,
+                      // Overwrite labels only if the key is present in the import, otherwise keep existing
+                      labels: importedLabels !== undefined ? importedLabels : (existing.labels || []),
+                      // Preserve existing probers and group
                       proberIds: existing.proberIds || [],
-                      labels: t.labels || existing.labels || [],
                       groupId: existing.groupId,
                       updatedAt: now
                   };
                   toUpdate.push(updated);
               } else {
-                  // Create new target: ignore incoming id, groupId, proberIds, created/updated timestamps
                   const created: Target = {
                       id: uuid(),
                       name: t.name,
                       url: t.url,
                       module: t.module || 'http_2xx',
-                      proberIds: [],
-                      labels: t.labels || [],
-                      groupId: undefined,
+                      proberIds: [], // Do not import probers for new targets
+                      labels: importedLabels || [],
+                      groupId: undefined, // Do not import group for new targets
                       status: 'unknown',
-                      enabled: t.enabled ?? false,
+                      enabled: t.enabled ?? false, // Default to disabled if not specified
                       createdAt: now,
                       updatedAt: now
                   };
