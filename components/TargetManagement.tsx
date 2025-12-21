@@ -300,6 +300,7 @@ export const TargetManagement: React.FC<Props> = ({
       result = result.filter(t => 
         t.name.toLowerCase().includes(q) || 
         t.url.toLowerCase().includes(q) ||
+        t.module.toLowerCase().includes(q) ||
         t.labels.some(l => `${l.key}=${l.value}`.toLowerCase().includes(q) || l.key.includes(q) || l.value.includes(q))
       );
     }
@@ -830,7 +831,7 @@ export const TargetManagement: React.FC<Props> = ({
                     <input 
                     ref={searchInputRef}
                     type="text"
-                    placeholder="Search by name, url, or label..."
+                    placeholder="Search by name, url, module, or label..."
                     value={localSearch}
                     onChange={(e) => { setLocalSearch(e.target.value); setCurrentPage(1); }}
                     className="w-full bg-[#18181b] border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 focus:border-blue-500 transition-colors"
@@ -950,7 +951,7 @@ export const TargetManagement: React.FC<Props> = ({
                             </div>
                             </td>
                             <td className={`px-6 ${rowPadding}`}>
-                                <span className="text-sm text-gray-300 font-mono">{t.module}</span>
+                                <span className="px-2 py-0.5 bg-[#111] border border-white/10 rounded text-[10px] text-gray-400 font-mono">{t.module}</span>
                             </td>
                             <td className={`px-6 ${rowPadding}`}>
                             <div className="flex flex-wrap gap-1">
