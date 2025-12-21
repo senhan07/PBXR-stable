@@ -14,7 +14,9 @@ import {
   Tags,
   ScrollText,
   KeyRound,
-  ArrowRight
+  ArrowRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { INITIAL_STATE } from './constants';
 import { AppState, AppAction, User, AppEvent } from './types';
@@ -327,6 +329,16 @@ const App: React.FC = () => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [serverAvailable, setServerAvailable] = useState<boolean | null>(null);
   const prevServerAvailable = React.useRef<boolean | null>(null);
+
+  // Sidebar State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.toString());
+  }, [isSidebarCollapsed]);
+
 
   // Notify user when server connectivity changes (show toast on disconnect/reconnect)
   useEffect(() => {
@@ -650,12 +662,12 @@ const App: React.FC = () => {
       <Toaster />
       
       {/* Sidebar */}
-      <aside className="w-64 bg-[#08080a] border-r border-white/5 flex flex-col z-30">
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-white/5">
+      <aside className={`bg-[#08080a] border-r border-white/5 flex flex-col z-30 transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+        <div className={`h-16 flex items-center gap-3 border-b border-white/5 relative ${isSidebarCollapsed ? 'px-6 justify-center' : 'px-6'}`}>
           <div className="w-8 h-8 bg-blue-600/20 rounded flex items-center justify-center text-blue-500">
              <TerminalSquare className="w-5 h-5" />
           </div>
-          <span className="font-bold text-xl text-white tracking-wide">PBXR</span>
+          {!isSidebarCollapsed && <span className="font-bold text-xl text-white tracking-wide">PBXR</span>}
         </div>
         
         <nav className="flex-1 px-3 py-6 space-y-1">
@@ -669,17 +681,18 @@ const App: React.FC = () => {
                   isActive
                     ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20 shadow-glow' 
                     : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border border-transparent'
-                }`}
+                } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                title={isSidebarCollapsed ? item.label : undefined}
               >
                 <item.icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-gray-500'}`} />
-                <span>{item.label}</span>
+                {!isSidebarCollapsed && <span>{item.label}</span>}
               </button>
             )
           })}
 
           {adminMenu.some(item => item.allowed.includes(state.currentUser!.role)) && (
             <div className="pt-4 mt-4 border-t border-white/5">
-                <p className="px-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Administration</p>
+                {!isSidebarCollapsed && <p className="px-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Administration</p>}
                 {adminMenu.filter(item => item.allowed.includes(state.currentUser!.role)).map(item => {
                     const isActive = activeTab === item.id;
                     return (
@@ -690,10 +703,11 @@ const App: React.FC = () => {
                         isActive
                             ? 'bg-purple-600/10 text-purple-400 border border-purple-500/20 shadow-[0_0_15px_-5px_rgba(168,85,247,0.3)]' 
                             : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border border-transparent'
-                        }`}
+                        } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                         title={isSidebarCollapsed ? item.label : undefined}
                     >
                         <item.icon className={`w-4 h-4 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} />
-                        <span>{item.label}</span>
+                        {!isSidebarCollapsed && <span>{item.label}</span>}
                     </button>
                     )
                 })}
@@ -701,27 +715,38 @@ const App: React.FC = () => {
           )}
         </nav>
 
-        <div className="p-4 border-t border-white/5 relative">
+        <div className={`p-4 border-t border-white/5 relative ${isSidebarCollapsed ? 'p-2' : ''}`}>
+           {/* Sidebar Toggle */}
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute -right-3 top-[-30px] w-6 h-6 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center transition-all duration-300"
+            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isSidebarCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+          </button>
+
           {/* Auto Logout Timer placed above user profile */}
-          {state.currentUser && state.config.autoLogoutMinutes > 0 && timeLeft && (
+          {state.currentUser && state.config.autoLogoutMinutes > 0 && timeLeft && !isSidebarCollapsed && (
              <div className="mb-3 bg-black/40 border border-white/5 px-3 py-1.5 rounded-lg flex items-center gap-2 text-[10px] font-mono text-gray-400 animate-fade-in">
                 <div className={`w-1.5 h-1.5 rounded-full ${parseInt(timeLeft.replace(':', '')) < 100 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></div>
                 <span>AUTO-LOGOUT IN {timeLeft}</span>
              </div>
           )}
           
-          <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+          <div className={`flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 ${isSidebarCollapsed ? 'p-2 justify-center' : ''}`}>
              <div className="relative">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-black flex items-center justify-center text-xs font-bold text-white border border-white/10">
                     {state.currentUser.username.charAt(0).toUpperCase()}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#08080a] rounded-full"></div>
              </div>
-             <div className="flex-1 overflow-hidden">
-               <p className="text-xs font-bold text-white truncate">{state.currentUser.username}</p>
-               <p className="text-xs text-gray-500 font-mono uppercase truncate">{state.currentUser.role}</p>
-             </div>
-             <button onClick={() => dispatch({type: 'LOGOUT'})} className="text-gray-500 hover:text-white transition-colors"><LogOut className="w-4 h-4" /></button>
+             {!isSidebarCollapsed && (
+               <div className="flex-1 overflow-hidden">
+                 <p className="text-xs font-bold text-white truncate">{state.currentUser.username}</p>
+                 <p className="text-xs text-gray-500 font-mono uppercase truncate">{state.currentUser.role}</p>
+               </div>
+             )}
+             {!isSidebarCollapsed && <button onClick={() => dispatch({type: 'LOGOUT'})} className="text-gray-500 hover:text-white transition-colors"><LogOut className="w-4 h-4" /></button>}
           </div>
         </div>
       </aside>
