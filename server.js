@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, 'data');
@@ -327,15 +328,21 @@ const targetsHandler = async (req, res) => {
             t.proberIds.forEach(pid => {
                 const prober = state.probers.find(p => p.id === pid);
                 if (prober) {
+                    const labels = {
+                        module: t.module,
+                        short_name: t.name,
+                        zone: prober.region || 'int',
+                        probe_server: prober.name,
+                        enabled: String(t.enabled !== false)
+                    };
+                    if (t.labels && t.labels.length > 0) {
+                        t.labels.forEach(l => {
+                            labels[l.key] = l.value;
+                        });
+                    }
                     discoveryData.push({
                         targets: [t.url],
-                        labels: {
-                            module: t.module,
-                            short_name: t.name,
-                            zone: prober.region || 'int',
-                            probe_server: prober.name,
-                            enabled: String(t.enabled !== false)
-                        }
+                        labels: labels
                     });
                 }
             });
@@ -393,7 +400,7 @@ const prometheusHandler = async (req, res) => {
         const discoveryUrl = origin + '/api/targets' + (state.config.targetsEndpoint.authRequired ? `?token=${state.config.targetsEndpoint.authToken}` : '');
         const httpSdBlock = `    http_sd_configs:
       - url: '${discoveryUrl}'
-        refresh_interval: 1m`;
+        refresh_interval: ${state.config.scrapeInterval || '60s'}`;
 
         const generatedConfigs = targetProbers.map(p => {
             let config = template;
@@ -549,6 +556,44 @@ app.post('/api/users/:id/verify-password', async (req, res) => {
     console.error('Error during password verification:', err);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// API: Proxy Prometheus reload POST request
+app.post('/api/prometheus/reload', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const result = await db.get('SELECT value FROM kv_store WHERE key = ?', 'app_state');
+        if (!result) {
+            return res.status(404).json({ error: 'App state not found' });
+        }
+        const state = JSON.parse(result.value);
+        const promConfig = state.config || {};
+        const promUrl = promConfig.prometheusUrl;
+        if (!promUrl) {
+            return res.status(400).json({ error: 'Prometheus URL not configured' });
+        }
+
+        const base = promUrl.replace(/\/$/, '');
+        const reloadUrl = `${base}/-/reload`;
+
+        const headers = {};
+        if (promConfig.promAuthMethod === 'basic' && promConfig.promAuthCredentials) {
+            headers['Authorization'] = 'Basic ' + Buffer.from(promConfig.promAuthCredentials).toString('base64');
+        } else if (promConfig.promAuthMethod === 'bearer' && promConfig.promAuthCredentials) {
+            headers['Authorization'] = 'Bearer ' + promConfig.promAuthCredentials;
+        }
+
+        const promRes = await fetch(reloadUrl, { method: 'POST', headers });
+
+        if (promRes.ok) {
+            res.status(200).json({ success: true });
+        } else {
+            res.status(promRes.status).json({ error: `Prometheus reload failed with status ${promRes.status}` });
+        }
+    } catch (error) {
+        console.error('Error proxying Prometheus reload:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // Fallback to index.html for SPA routing

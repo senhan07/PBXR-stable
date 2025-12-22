@@ -107,16 +107,7 @@ export const Settings: React.FC<Props> = ({ state, onUpdateConfig, onImport, onL
       (async () => {
           setReloadStatus('loading');
           try {
-              const base = (localConfig.prometheusUrl || '').replace(/\/$/, '');
-              if (!base) throw new Error('No Prometheus URL configured');
-              const reloadUrl = `${base}/-/reload`;
-              const headers: Record<string, string> = {};
-              if (localConfig.promAuthMethod === 'basic' && localConfig.promAuthCredentials) {
-                  headers['Authorization'] = 'Basic ' + btoa(localConfig.promAuthCredentials);
-              } else if (localConfig.promAuthMethod === 'bearer' && localConfig.promAuthCredentials) {
-                  headers['Authorization'] = 'Bearer ' + localConfig.promAuthCredentials;
-              }
-              const res = await fetch(reloadUrl, { method: 'POST', headers });
+              const res = await fetch('/api/prometheus/reload', { method: 'POST' });
               setReloadStatus(res.ok ? 'success' : 'error');
           } catch (err) {
               setReloadStatus('error');
@@ -479,7 +470,7 @@ export const Settings: React.FC<Props> = ({ state, onUpdateConfig, onImport, onL
                         </div>
 
                         <div>
-                            <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Default Scrape Interval</label>
+                            <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Default SD Refresh Interval</label>
                             <div className="relative">
                                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
                                 <input value={localConfig.scrapeInterval} onChange={(e) => updateConfigField({ scrapeInterval: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-zinc-200 outline-none focus:border-indigo-600 font-mono text-sm transition-colors" placeholder="e.g. 60s" />
