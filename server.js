@@ -568,9 +568,14 @@ app.post('/api/prometheus/reload', async (req, res) => {
         }
         const state = JSON.parse(result.value);
         const promConfig = state.config || {};
-        const promUrl = promConfig.prometheusUrl;
+        let promUrl = promConfig.prometheusUrl;
         if (!promUrl) {
             return res.status(400).json({ error: 'Prometheus URL not configured' });
+        }
+
+        // Ensure the URL has a protocol
+        if (!promUrl.startsWith('http://') && !promUrl.startsWith('https://')) {
+            promUrl = 'http://' + promUrl;
         }
 
         const base = promUrl.replace(/\/$/, '');
