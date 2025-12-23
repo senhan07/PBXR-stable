@@ -558,22 +558,54 @@ app.post('/api/users/:id/verify-password', async (req, res) => {
   }
 });
 
+// API: Proxy Prometheus connection check
+app.post('/api/prometheus/check', async (req, res) => {
+    try {
+        let { url } = req.body;
+        if (!url) {
+            return res.status(400).json({ error: 'URL is required' });
+        }
+
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'http://' + url;
+        }
+
+        const readyUrl = `${url.replace(/\/$/, '')}/-/ready`;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        try {
+            const promRes = await fetch(readyUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (promRes.ok) {
+                res.status(200).json({ success: true, message: 'Connection successful' });
+            } else {
+                res.status(400).json({ success: false, message: `Prometheus check failed: ${promRes.statusText}` });
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                 return res.status(400).json({ success: false, message: 'Connection timed out' });
+            }
+            res.status(400).json({ success: false, message: 'Connection failed. Check URL.' });
+        }
+    } catch (error) {
+        console.error('Error in Prometheus check endpoint:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // API: Proxy Prometheus reload POST request
 app.post('/api/prometheus/reload', async (req, res) => {
     try {
-        const db = await dbPromise;
-        const result = await db.get('SELECT value FROM kv_store WHERE key = ?', 'app_state');
-        if (!result) {
-            return res.status(404).json({ error: 'App state not found' });
-        }
-        const state = JSON.parse(result.value);
-        const promConfig = state.config || {};
-        let promUrl = promConfig.prometheusUrl;
-        if (!promUrl) {
-            return res.status(400).json({ error: 'Prometheus URL not configured' });
+        const { url, authMethod, authCredentials } = req.body;
+        if (!url) {
+            return res.status(400).json({ error: 'URL is required for reload' });
         }
 
-        // Ensure the URL has a protocol
+        let promUrl = url;
         if (!promUrl.startsWith('http://') && !promUrl.startsWith('https://')) {
             promUrl = 'http://' + promUrl;
         }
@@ -582,10 +614,10 @@ app.post('/api/prometheus/reload', async (req, res) => {
         const reloadUrl = `${base}/-/reload`;
 
         const headers = {};
-        if (promConfig.promAuthMethod === 'basic' && promConfig.promAuthCredentials) {
-            headers['Authorization'] = 'Basic ' + Buffer.from(promConfig.promAuthCredentials).toString('base64');
-        } else if (promConfig.promAuthMethod === 'bearer' && promConfig.promAuthCredentials) {
-            headers['Authorization'] = 'Bearer ' + promConfig.promAuthCredentials;
+        if (authMethod === 'basic' && authCredentials) {
+            headers['Authorization'] = 'Basic ' + Buffer.from(authCredentials).toString('base64');
+        } else if (authMethod === 'bearer' && authCredentials) {
+            headers['Authorization'] = 'Bearer ' + authCredentials;
         }
 
         const promRes = await fetch(reloadUrl, { method: 'POST', headers });

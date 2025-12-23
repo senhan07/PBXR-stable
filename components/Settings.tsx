@@ -83,20 +83,20 @@ export const Settings: React.FC<Props> = ({ state, onUpdateConfig, onImport, onL
           setCheckingConn(true);
           setConnStatus('none');
           try {
-              const base = (localConfig.prometheusUrl || '').replace(/\/$/, '');
-              if (!base) throw new Error('No Prometheus URL configured');
-              const readyUrl = `${base}/-/ready`;
-              const res = await fetch(readyUrl, { method: 'GET' });
-              setConnStatus(res.ok ? 'success' : 'fail');
-          } catch (err) {
-              // Fallback: try base URL
-              try {
-                  const base = (localConfig.prometheusUrl || '').replace(/\/$/, '');
-                  const res2 = await fetch(base || '', { method: 'GET' });
-                  setConnStatus(res2.ok ? 'success' : 'fail');
-              } catch (e) {
+              const url = localConfig.prometheusUrl;
+              if (!url) {
                   setConnStatus('fail');
+                  return;
               }
+              const res = await fetch('/api/prometheus/check', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url })
+              });
+              const data = await res.json();
+              setConnStatus(data.success ? 'success' : 'fail');
+          } catch (err) {
+              setConnStatus('fail');
           } finally {
               setCheckingConn(false);
           }
@@ -107,7 +107,20 @@ export const Settings: React.FC<Props> = ({ state, onUpdateConfig, onImport, onL
       (async () => {
           setReloadStatus('loading');
           try {
-              const res = await fetch('/api/prometheus/reload', { method: 'POST' });
+              const { prometheusUrl, promAuthMethod, promAuthCredentials } = localConfig;
+              if (!prometheusUrl) {
+                  setReloadStatus('error');
+                  return;
+              }
+              const res = await fetch('/api/prometheus/reload', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      url: prometheusUrl,
+                      authMethod: promAuthMethod,
+                      authCredentials: promAuthCredentials
+                  })
+              });
               setReloadStatus(res.ok ? 'success' : 'error');
           } catch (err) {
               setReloadStatus('error');
