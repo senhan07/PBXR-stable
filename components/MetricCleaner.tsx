@@ -9,6 +9,25 @@ interface Props {
     prometheusConfig: any; // AppConfig (kept any to avoid import cycles)
 }
 
+// Helper to parse and quote label selectors
+const parseAndQuoteMatchers = (input: string): string[] => {
+    if (!input) return [];
+    return input.split(',').map(part => {
+        part = part.trim();
+        const match = part.match(/^([^=~]+)(=~?)(.*)$/);
+        if (!match) return part; // Return as-is if malformed
+
+        let [, key, op, value] = match;
+        value = value.trim();
+
+        // Add quotes if value is not already quoted
+        if (!value.startsWith('"') && !value.endsWith('"')) {
+            value = `"${value}"`;
+        }
+        return `${key}${op}${value}`;
+    });
+};
+
 export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) => {
   const [selectedTargetId, setSelectedTargetId] = useState('');
   const [deleteMode, setDeleteMode] = useState<'all' | 'range'>('all');
@@ -43,13 +62,12 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
         try {
             if (!prometheusConfig?.prometheusUrl) throw new Error('Prometheus URL not configured');
 
-            const normalize = (s: string) => s.trim();
-            const extraFromInput = labelSelector ? labelSelector.split(',').map(normalize).filter(Boolean) : [];
+            const extraFromInput = parseAndQuoteMatchers(labelSelector);
             let parts: string[] = [];
             if (selectedTarget) {
-                parts.push(`instance=\"${selectedTarget.url}\"`);
+                parts.push(`instance="${selectedTarget.url}"`);
                 (selectedTarget.labels || []).forEach(l => {
-                    if (l && l.key) parts.push(`${l.key}=\"${l.value}\"`);
+                    if (l && l.key) parts.push(`${l.key}="${l.value}"`);
                 });
                 parts = parts.concat(extraFromInput);
             } else {
@@ -98,15 +116,12 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
 
     // Build effective matcher for display (same rules as deletion):
     const computeDisplayMatcher = () => {
-        const normalize = (s: string) => s.trim();
-        const extra = labelSelector ? labelSelector.split(',').map(normalize).filter(Boolean).join(', ') : '';
+        const extra = parseAndQuoteMatchers(labelSelector).join(', ');
         if (selectedTarget) {
-            const instance = `instance=\"${selectedTarget.url}\"`;
-            // include labels attached on the target (key="value")
-            const lbls = (selectedTarget.labels || []).map(l => `${l.key}=\"${l.value}\"`);
+            const instance = `instance="${selectedTarget.url}"`;
+            const lbls = (selectedTarget.labels || []).map(l => `${l.key}="${l.value}"`);
             return [instance, ...lbls, extra].filter(Boolean).join(', ');
         }
-        // When no target selected, do NOT include job="blackbox" per UX request — only use provided label selectors
         return extra || '';
     };
 
@@ -330,5 +345,5 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
 };
 
 const InfoIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0-0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 );
