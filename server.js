@@ -5,7 +5,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
-import fetch from 'node-fetch';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, 'data');
@@ -328,21 +327,15 @@ const targetsHandler = async (req, res) => {
             t.proberIds.forEach(pid => {
                 const prober = state.probers.find(p => p.id === pid);
                 if (prober) {
-                    const labels = {
-                        module: t.module,
-                        short_name: t.name,
-                        zone: prober.region || 'int',
-                        probe_server: prober.name,
-                        enabled: String(t.enabled !== false)
-                    };
-                    if (t.labels && t.labels.length > 0) {
-                        t.labels.forEach(l => {
-                            labels[l.key] = l.value;
-                        });
-                    }
                     discoveryData.push({
                         targets: [t.url],
-                        labels: labels
+                        labels: {
+                            module: t.module,
+                            short_name: t.name,
+                            zone: prober.region || 'int',
+                            probe_server: prober.name,
+                            enabled: String(t.enabled !== false)
+                        }
                     });
                 }
             });
@@ -400,7 +393,7 @@ const prometheusHandler = async (req, res) => {
         const discoveryUrl = origin + '/api/targets' + (state.config.targetsEndpoint.authRequired ? `?token=${state.config.targetsEndpoint.authToken}` : '');
         const httpSdBlock = `    http_sd_configs:
       - url: '${discoveryUrl}'
-        refresh_interval: ${state.config.scrapeInterval || '60s'}`;
+        refresh_interval: 1m`;
 
         const generatedConfigs = targetProbers.map(p => {
             let config = template;
@@ -556,128 +549,6 @@ app.post('/api/users/:id/verify-password', async (req, res) => {
     console.error('Error during password verification:', err);
     res.status(500).json({ error: 'Server error' });
   }
-});
-
-// API: Proxy Prometheus connection check
-app.post('/api/prometheus/check', async (req, res) => {
-    try {
-        let { url } = req.body;
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
-        }
-
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'http://' + url;
-        }
-
-        const readyUrl = `${url.replace(/\/$/, '')}/-/ready`;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-        try {
-            const promRes = await fetch(readyUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (promRes.ok) {
-                res.status(200).json({ success: true, message: 'Connection successful' });
-            } else {
-                res.status(400).json({ success: false, message: `Prometheus check failed: ${promRes.statusText}` });
-            }
-        } catch (error) {
-            clearTimeout(timeoutId);
-            if (error.name === 'AbortError') {
-                 return res.status(400).json({ success: false, message: 'Connection timed out' });
-            }
-            res.status(400).json({ success: false, message: 'Connection failed. Check URL.' });
-        }
-    } catch (error) {
-        console.error('Error in Prometheus check endpoint:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// API: Proxy Prometheus reload POST request
-app.post('/api/prometheus/reload', async (req, res) => {
-    try {
-        const { url, authMethod, authCredentials } = req.body;
-        console.log(`[RELOAD] Received reload request for URL: ${url}`);
-
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required for reload' });
-        }
-
-        let promUrl = url;
-        if (!promUrl.startsWith('http://') && !promUrl.startsWith('https://')) {
-            promUrl = 'http://' + promUrl;
-        }
-
-        const base = promUrl.replace(/\/$/, '');
-        const reloadUrl = `${base}/-/reload`;
-        console.log(`[RELOAD] Proxying reload request to: ${reloadUrl}`);
-
-        const headers = {};
-        if (authMethod === 'basic' && authCredentials) {
-            headers['Authorization'] = 'Basic ' + Buffer.from(authCredentials).toString('base64');
-        } else if (authMethod === 'bearer' && authCredentials) {
-            headers['Authorization'] = 'Bearer ' + authCredentials;
-        }
-
-        const promRes = await fetch(reloadUrl, { method: 'POST', headers });
-
-        if (promRes.ok) {
-            res.status(200).json({ success: true });
-        } else {
-            const errorBody = await promRes.text();
-            console.error(`[RELOAD] Prometheus responded with status ${promRes.status}: ${errorBody}`);
-            res.status(promRes.status).json({ error: `Prometheus reload failed with status ${promRes.status}` });
-        }
-    } catch (error) {
-        console.error('Error proxying Prometheus reload:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// API: Proxy for deleting series from Prometheus
-app.post('/api/prometheus/delete_series', async (req, res) => {
-    try {
-        const { prometheusUrl, matches, authMethod, authCredentials } = req.body;
-        if (!prometheusUrl || !matches || !Array.isArray(matches)) {
-            return res.status(400).json({ error: 'Missing required parameters' });
-        }
-
-        let promUrl = prometheusUrl;
-        if (!promUrl.startsWith('http://') && !promUrl.startsWith('https://')) {
-            promUrl = 'http://' + promUrl;
-        }
-
-        const deleteUrl = `${promUrl.replace(/\/$/, '')}/api/v1/admin/tsdb/delete_series`;
-        const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-        if (authMethod === 'basic' && authCredentials) {
-            headers['Authorization'] = 'Basic ' + Buffer.from(authCredentials).toString('base64');
-        } else if (authMethod === 'bearer' && authCredentials) {
-            headers['Authorization'] = 'Bearer ' + authCredentials;
-        }
-
-        const body = new URLSearchParams();
-        matches.forEach(match => body.append('match[]', match));
-
-        const promRes = await fetch(deleteUrl, {
-            method: 'POST',
-            headers: headers,
-            body: body
-        });
-
-        if (promRes.ok) {
-            res.status(204).send();
-        } else {
-            const errorText = await promRes.text();
-            res.status(promRes.status).json({ error: `Prometheus API error: ${errorText}` });
-        }
-    } catch (error) {
-        console.error('Error proxying Prometheus delete_series:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
 });
 
 // Fallback to index.html for SPA routing

@@ -250,11 +250,11 @@ export const UserManagement: React.FC<Props> = ({ users, onAdd, onUpdate, onDele
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div>
                         <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Username</label>
-                        <input type="text" value={formData.username || ''} onChange={e => setFormData(prev => ({...prev, username: e.target.value}))} className="w-full bg-[#18181b] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:border-blue-500" placeholder="jdoe" />
+                        <input type="text" value={formData.username || ''} onChange={e => setFormData({...formData, username: e.target.value})} className="w-full bg-[#18181b] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:border-blue-500" placeholder="jdoe" />
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Password</label>
-                        <input type="password" value={formData.password || ''} onChange={e => setFormData(prev => ({...prev, password: e.target.value}))} className="w-full bg-[#18181b] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:border-blue-500" placeholder="••••••••" />
+                        <input type="password" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-[#18181b] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:border-blue-500" placeholder="••••••••" />
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Confirm Password</label>
@@ -265,7 +265,7 @@ export const UserManagement: React.FC<Props> = ({ users, onAdd, onUpdate, onDele
                         <CustomSelect 
                             options={roleOptions} 
                             value={formData.role || 'viewer'} 
-                            onChange={(v) => setFormData(prev => ({...prev, role: v as any}))}
+                            onChange={(v) => setFormData({...formData, role: v as any})}
                         />
                     </div>
                 </div>

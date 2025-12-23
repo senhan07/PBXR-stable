@@ -5,7 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PBXR - Manage your monitoring targets</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              background: '#050507',
+              surface: '#0f0f11',
+              border: '#27272a',
+              primary: '#3b82f6', // Brighter Blue
+              secondary: '#6366f1',
+              success: '#10b981',
+              danger: '#ef4444',
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+              'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            },
+            boxShadow: {
+              'glow': '0 0 20px -5px rgba(59, 130, 246, 0.3)',
+            }
+          }
+        }
+      }
+    </script>
     <style>
       body { 
         background-color: #050507;

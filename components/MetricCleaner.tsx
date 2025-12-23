@@ -9,25 +9,6 @@ interface Props {
     prometheusConfig: any; // AppConfig (kept any to avoid import cycles)
 }
 
-// Helper to parse and quote label selectors
-const parseAndQuoteMatchers = (input: string): string[] => {
-    if (!input) return [];
-    return input.split(',').map(part => {
-        part = part.trim();
-        const match = part.match(/^([^=~]+)(=~?)(.*)$/);
-        if (!match) return part; // Return as-is if malformed
-
-        let [, key, op, value] = match;
-        value = value.trim();
-
-        // Add quotes if value is not already quoted
-        if (!value.startsWith('"') && !value.endsWith('"')) {
-            value = `"${value}"`;
-        }
-        return `${key}${op}${value}`;
-    });
-};
-
 export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) => {
   const [selectedTargetId, setSelectedTargetId] = useState('');
   const [deleteMode, setDeleteMode] = useState<'all' | 'range'>('all');
@@ -59,18 +40,25 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
     setConfirmModalOpen(false);
     setIsDeleting(true); 
     setResult(null);
+        // Build matchers and call Prometheus admin API
         try {
-            if (!prometheusConfig?.prometheusUrl) throw new Error('Prometheus URL not configured');
+            const base = (prometheusConfig?.prometheusUrl || '').replace(/\/$/, '');
+            if (!base) throw new Error('Prometheus URL not configured');
 
-            const extraFromInput = parseAndQuoteMatchers(labelSelector);
+            // Build matcher string: if target selected, use instance and target's own labels (no target_id); otherwise use labelSelector only.
+            const normalize = (s: string) => s.trim();
+            const extraFromInput = labelSelector ? labelSelector.split(',').map(normalize).filter(Boolean) : [];
             let parts: string[] = [];
             if (selectedTarget) {
-                parts.push(`instance="${selectedTarget.url}"`);
+                parts.push(`instance=\"${selectedTarget.url}\"`);
+                // include labels attached on target
                 (selectedTarget.labels || []).forEach(l => {
-                    if (l && l.key) parts.push(`${l.key}="${l.value}"`);
+                    if (l && l.key) parts.push(`${l.key}=\"${l.value}\"`);
                 });
+                // include any extra user-provided selectors
                 parts = parts.concat(extraFromInput);
             } else {
+                // No target selected: use only provided label selectors (do not include job="blackbox")
                 parts = parts.concat(extraFromInput);
             }
 
@@ -78,35 +66,40 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
 
             const matcher = `{${parts.join(', ')}}`;
 
-            const body: any = {
-                prometheusUrl: prometheusConfig.prometheusUrl,
-                matches: [matcher],
-                authMethod: prometheusConfig.promAuthMethod,
-                authCredentials: prometheusConfig.promAuthCredentials
-            };
-
+            // Construct request body
+            const body: any = { matchers: [matcher] };
             if (deleteMode === 'range' && startTime && endTime) {
                 body.start = new Date(startTime).toISOString();
                 body.end = new Date(endTime).toISOString();
             }
 
-            const res = await fetch('/api/prometheus/delete_series', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || `Request failed with status ${res.status}`);
+            const headers: any = { 'Content-Type': 'application/json' };
+            const method = prometheusConfig?.promAuthMethod || 'none';
+            const cred = prometheusConfig?.promAuthCredentials || '';
+            if (method === 'basic' && cred) {
+                headers['Authorization'] = `Basic ${btoa(cred)}`;
+            } else if (method === 'bearer' && cred) {
+                headers['Authorization'] = `Bearer ${cred}`;
             }
 
-            // Tombstone cleaning is not proxied, as it's a separate admin action.
-            // The main issue was the series deletion. We can leave this as a future improvement if needed.
+            const deleteUrl = `${base}/api/v1/admin/tsdb/delete_series`;
+            const res = await fetch(deleteUrl, { method: 'POST', headers, body: JSON.stringify(body) });
+            if (!res.ok) {
+                const txt = await res.text().catch(() => '');
+                throw new Error(`Prometheus delete_series failed: ${res.status} ${res.statusText} ${txt}`);
+            }
+
+            // Clean tombstones
+            const cleanUrl = `${base}/api/v1/admin/tsdb/clean_tombstones`;
+            const res2 = await fetch(cleanUrl, { method: 'POST', headers });
+            if (!res2.ok) {
+                const txt = await res2.text().catch(() => '');
+                throw new Error(`Prometheus clean_tombstones failed: ${res2.status} ${res2.statusText} ${txt}`);
+            }
 
             const timeRange = deleteMode === 'all' ? 'ALL TIME' : `${startTime} to ${endTime}`;
             const targetPart = selectedTarget ? `target ${selectedTarget.name}` : 'matching targets';
-            setResult({ type: 'success', message: `Successfully requested series deletion for ${targetPart} with labels { ${parts.join(', ')} } (${timeRange}). Tombstone cleaning will run on Prometheus server.` });
+            setResult({ type: 'success', message: `Successfully purged series for ${targetPart} with labels { ${parts.join(', ')} } (${timeRange}).` });
         } catch (err: any) {
             setResult({ type: 'error', message: `Failed to purge series: ${err.message || String(err)}` });
         } finally {
@@ -116,12 +109,15 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
 
     // Build effective matcher for display (same rules as deletion):
     const computeDisplayMatcher = () => {
-        const extra = parseAndQuoteMatchers(labelSelector).join(', ');
+        const normalize = (s: string) => s.trim();
+        const extra = labelSelector ? labelSelector.split(',').map(normalize).filter(Boolean).join(', ') : '';
         if (selectedTarget) {
-            const instance = `instance="${selectedTarget.url}"`;
-            const lbls = (selectedTarget.labels || []).map(l => `${l.key}="${l.value}"`);
+            const instance = `instance=\"${selectedTarget.url}\"`;
+            // include labels attached on the target (key="value")
+            const lbls = (selectedTarget.labels || []).map(l => `${l.key}=\"${l.value}\"`);
             return [instance, ...lbls, extra].filter(Boolean).join(', ');
         }
+        // When no target selected, do NOT include job="blackbox" per UX request — only use provided label selectors
         return extra || '';
     };
 
@@ -345,5 +341,5 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
 };
 
 const InfoIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0-0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 );
