@@ -160,6 +160,7 @@ export const TargetManagement: React.FC<Props> = ({
   // Import / Export State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importContent, setImportContent] = useState('');
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
   // Bulk Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -431,10 +432,14 @@ export const TargetManagement: React.FC<Props> = ({
   const handleBulkDelete = (e?: React.MouseEvent) => {
       e?.stopPropagation(); // Prevent bubbling
       if (!onBatchDelete) return;
-      if (window.confirm(`Delete ${selectedIds.size} targets? This cannot be undone.`)) {
-          onBatchDelete(Array.from(selectedIds));
-          setSelectedIds(new Set());
-      }
+      setIsBulkDeleteModalOpen(true);
+  };
+
+  const confirmBulkDelete = () => {
+    if (!onBatchDelete) return;
+    onBatchDelete(Array.from(selectedIds));
+    setSelectedIds(new Set());
+    setIsBulkDeleteModalOpen(false);
   };
 
   const handleBulkEnableDisable = (enable: boolean) => {
@@ -1395,6 +1400,20 @@ export const TargetManagement: React.FC<Props> = ({
           document.body
       )}
 
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" id="modal-root">
+          <div className="bg-[#18181b] w-full max-w-sm p-6 rounded-xl border border-white/10 shadow-2xl">
+             <div className="mb-4 text-red-500 bg-red-500/10 p-3 rounded-full w-fit"><Trash2 className="w-6 h-6" /></div>
+             <h3 className="text-lg font-bold text-white mb-2">Delete {selectedIds.size} Targets</h3>
+             <p className="text-gray-400 text-sm mb-6">Are you sure? This action is irreversible.</p>
+             <div className="flex gap-3 justify-end">
+                <button onClick={() => setIsBulkDeleteModalOpen(false)} className="px-4 py-2 rounded-lg text-gray-300 hover:bg-white/5 text-sm font-medium">Cancel</button>
+                <button onClick={confirmBulkDelete} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold">Confirm</button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
