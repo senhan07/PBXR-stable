@@ -335,22 +335,10 @@ const App: React.FC = () => {
       return;
     }
     if (prevServerAvailable.current === true && serverAvailable === false) {
-      window.dispatchEvent(new CustomEvent('app-toast', {
-        detail: {
-          id: 'server-connection-toast',
-          message: 'Lost connection to server — running in offline mode',
-          type: 'error'
-        }
-      }));
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Lost connection to server — running in offline mode', type: 'error' } }));
     }
     if (prevServerAvailable.current === false && serverAvailable === true) {
-      window.dispatchEvent(new CustomEvent('app-toast', {
-        detail: {
-          id: 'server-connection-toast',
-          message: 'Reconnected to server',
-          type: 'success'
-        }
-      }));
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Reconnected to server', type: 'success' } }));
     }
     prevServerAvailable.current = serverAvailable;
   }, [serverAvailable]);
@@ -408,48 +396,52 @@ const App: React.FC = () => {
 
   }, [state, isDataLoaded]);
 
-  // Poll server state for connectivity, events, and session validation.
+  // Poll server-side events and merge them into local state so all clients stay in sync.
   useEffect(() => {
-    if (!isDataLoaded) return; // Wait for initial data load.
+    if (!serverAvailable) return;
     let stopped = false;
-
-    const pollServerState = async () => {
+    const fetchAndMerge = async () => {
       try {
-        const res = await fetch('/api/state');
-        if (!res.ok) throw new Error('Server poll failed');
-
-        // Connection succeeded
-        if (!serverAvailable) setServerAvailable(true);
-
-        const serverState = await res.json();
-        if (stopped || !serverState) return;
-
-        // 1. Merge Events
-        if (Array.isArray(serverState.events)) {
-          dispatch({ type: 'MERGE_EVENTS', payload: serverState.events });
+        const res = await fetch('/api/events');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!stopped && Array.isArray(data)) {
+          dispatch({ type: 'MERGE_EVENTS', payload: data });
         }
-
-        // 2. Check for session revocation
-        if (state.currentUser) {
-            const serverUser = (serverState.users || []).find((u: any) => u.id === state.currentUser!.id);
-            if (!serverUser || !(serverUser.sessions && serverUser.sessions.length > 0)) {
-              dispatch({ type: 'LOGOUT' });
-            }
-        }
-
       } catch (e) {
-        // Connection failed
-        if (serverAvailable) {
-            console.warn('Server poll failed, connection lost.');
-            setServerAvailable(false);
-        }
+        console.warn('Failed to poll events', e);
       }
     };
-
-    pollServerState();
-    const id = setInterval(pollServerState, 5000); // Poll every 5 seconds for less noise
+    // initial fetch + interval
+    fetchAndMerge();
+    const id = setInterval(fetchAndMerge, 3000);
     return () => { stopped = true; clearInterval(id); };
-  }, [isDataLoaded, serverAvailable, state.currentUser]);
+  }, [serverAvailable]);
+
+  // Poll server state to detect session revocations for the currently logged-in user.
+  useEffect(() => {
+    if (!serverAvailable || !state.currentUser) return;
+    let stopped = false;
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/api/state');
+        if (!res.ok) return;
+        const serverState = await res.json();
+        if (stopped) return;
+        if (!serverState) return;
+        const serverUser = (serverState.users || []).find((u: any) => u.id === state.currentUser!.id);
+        // If the user no longer exists on server, or has zero sessions, force logout.
+        if (!serverUser || !(serverUser.sessions && serverUser.sessions.length > 0)) {
+          dispatch({ type: 'LOGOUT' });
+        }
+      } catch (e) {
+        console.warn('Failed to poll server state for session check', e);
+      }
+    };
+    checkSession();
+    const id = setInterval(checkSession, 3000);
+    return () => { stopped = true; clearInterval(id); };
+  }, [serverAvailable, state.currentUser]);
 
   // --- Auto Logout Logic ---
   useEffect(() => {
