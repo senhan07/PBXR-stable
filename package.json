@@ -16,7 +16,8 @@
     "react-dom": "^18.2.0",
     "@google/genai": "0.2.0",
     "lucide-react": "^0.263.1",
-    "recharts": "^2.7.2"
+    "recharts": "^2.7.2",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "vite": "^4.4.9",
