@@ -1083,7 +1083,7 @@ export const TargetManagement: React.FC<Props> = ({
       )}
 
       {/* Bulk Move Modal */}
-      {isBulkMoveOpen && (
+      {isBulkMoveOpen && createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" id="modal-root">
               <div className="bg-[#18181b] w-full max-w-sm rounded-xl border border-white/10 shadow-2xl p-6 animate-slide-up">
                   <h3 className="text-lg font-bold text-white mb-4">Move {selectedIds.size} items to...</h3>
@@ -1100,11 +1100,12 @@ export const TargetManagement: React.FC<Props> = ({
                       <button onClick={handleBulkMove} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Move Targets</button>
                   </div>
               </div>
-          </div>
+          </div>,
+          document.body
       )}
 
       {/* Bulk Assign Modal */}
-      {isBulkAssignOpen && (
+      {isBulkAssignOpen && createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" id="modal-root">
               <div className="bg-[#18181b] w-full max-w-sm rounded-xl border border-white/10 shadow-2xl p-6 animate-slide-up">
                   <h3 className="text-lg font-bold text-white mb-4">Assign Prober to {selectedIds.size} targets</h3>
@@ -1132,11 +1133,12 @@ export const TargetManagement: React.FC<Props> = ({
                       <button onClick={handleBulkAssign} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Assign</button>
                   </div>
               </div>
-          </div>
+          </div>,
+          document.body
       )}
 
       {/* Import Modal */}
-      {isImportModalOpen && (
+      {isImportModalOpen && createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" id="modal-root">
               <div className="bg-[#18181b] w-full max-w-2xl rounded-xl border border-white/10 shadow-2xl p-6 animate-slide-up flex flex-col max-h-[90vh]">
                   <div className="flex justify-between items-center mb-6">
@@ -1157,11 +1159,12 @@ export const TargetManagement: React.FC<Props> = ({
                       <button onClick={handleImport} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20">Import Targets</button>
                   </div>
               </div>
-          </div>
+          </div>,
+          document.body
       )}
 
       {/* --- Add/Edit Modal (Updated with Group Selection) --- */}
-      {isAdding && (
+      {isAdding && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" id="modal-root">
           <div className="bg-[#0f0f11] w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 shadow-2xl relative animate-slide-up">
              <div className="sticky top-0 z-20 flex justify-between items-center px-6 py-5 border-b border-white/10 bg-[#18181b]">
@@ -1243,11 +1246,12 @@ export const TargetManagement: React.FC<Props> = ({
                   <button onClick={saveTarget} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20">{editingId ? 'Save Changes' : 'Create Target'}</button>
              </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* --- Details Modal (Reused) --- */}
-      {viewingTarget && (
+      {viewingTarget && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" id="modal-root" onClick={() => setViewingTarget(null)}>
            <div className="bg-[#0f0f11] w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl relative animate-slide-up overflow-hidden" onClick={e => e.stopPropagation()}>
                <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 px-8 py-6 border-b border-white/10">
@@ -1300,11 +1304,12 @@ export const TargetManagement: React.FC<Props> = ({
                    </div>
                </div>
            </div>
-        </div>
+        </div>,
+        document.body
       )}
       
       {/* Delete Confirmation Modal (Reused) */}
-      {deleteConfirmationId && (
+      {deleteConfirmationId && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" id="modal-root">
           <div className="bg-[#18181b] w-full max-w-sm p-6 rounded-xl border border-white/10 shadow-2xl">
              <div className="mb-4 text-red-500 bg-red-500/10 p-3 rounded-full w-fit"><Trash2 className="w-6 h-6" /></div>
@@ -1315,7 +1320,8 @@ export const TargetManagement: React.FC<Props> = ({
                 <button onClick={() => { if(deleteConfirmationId) onDelete(deleteConfirmationId); setDeleteConfirmationId(null); }} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold">Confirm</button>
              </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* New/Edit Folder Modal - PORTALLED for robustness */}
@@ -1403,7 +1409,7 @@ export const TargetManagement: React.FC<Props> = ({
       )}
 
       {/* Bulk Delete Confirmation Modal */}
-      {isBulkDeleteModalOpen && (
+      {isBulkDeleteModalOpen && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" id="modal-root">
           <div className="bg-[#18181b] w-full max-w-sm p-6 rounded-xl border border-white/10 shadow-2xl">
              <div className="mb-4 text-red-500 bg-red-500/10 p-3 rounded-full w-fit"><Trash2 className="w-6 h-6" /></div>
@@ -1424,7 +1430,8 @@ export const TargetManagement: React.FC<Props> = ({
                 <button onClick={confirmBulkDelete} disabled={bulkDeleteConfirmText !== 'delete'} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed">Delete Targets</button>
              </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
