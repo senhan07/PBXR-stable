@@ -156,6 +156,7 @@ export const TargetManagement: React.FC<Props> = ({
   const [viewingTarget, setViewingTarget] = useState<Target | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
+  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('');
 
   // Import / Export State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -440,6 +441,7 @@ export const TargetManagement: React.FC<Props> = ({
     onBatchDelete(Array.from(selectedIds));
     setSelectedIds(new Set());
     setIsBulkDeleteModalOpen(false);
+    setBulkDeleteConfirmText('');
   };
 
   const handleBulkEnableDisable = (enable: boolean) => {
@@ -1405,11 +1407,21 @@ export const TargetManagement: React.FC<Props> = ({
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" id="modal-root">
           <div className="bg-[#18181b] w-full max-w-sm p-6 rounded-xl border border-white/10 shadow-2xl">
              <div className="mb-4 text-red-500 bg-red-500/10 p-3 rounded-full w-fit"><Trash2 className="w-6 h-6" /></div>
-             <h3 className="text-lg font-bold text-white mb-2">Delete {selectedIds.size} Targets</h3>
-             <p className="text-gray-400 text-sm mb-6">Are you sure? This action is irreversible.</p>
+             <h3 className="text-lg font-bold text-white mb-2">Delete {selectedIds.size} Target(s)</h3>
+             <p className="text-gray-400 text-sm mb-4">This action is irreversible. To confirm, please type <strong className="text-red-400 select-none">delete</strong> below.</p>
+             <div className="mb-6">
+                <input
+                  type="text"
+                  value={bulkDeleteConfirmText}
+                  onChange={(e) => setBulkDeleteConfirmText(e.target.value)}
+                  className="w-full bg-[#0f0f11] border border-white/10 rounded-lg px-4 py-2 text-white text-sm placeholder-gray-700"
+                  placeholder="delete"
+                  autoFocus
+                />
+             </div>
              <div className="flex gap-3 justify-end">
                 <button onClick={() => setIsBulkDeleteModalOpen(false)} className="px-4 py-2 rounded-lg text-gray-300 hover:bg-white/5 text-sm font-medium">Cancel</button>
-                <button onClick={confirmBulkDelete} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold">Confirm</button>
+                <button onClick={confirmBulkDelete} disabled={bulkDeleteConfirmText !== 'delete'} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed">Delete Targets</button>
              </div>
           </div>
         </div>

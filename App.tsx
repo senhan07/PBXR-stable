@@ -335,10 +335,22 @@ const App: React.FC = () => {
       return;
     }
     if (prevServerAvailable.current === true && serverAvailable === false) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Lost connection to server — running in offline mode', type: 'error' } }));
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          id: 'server-connection-toast',
+          message: 'Lost connection to server — running in offline mode',
+          type: 'error'
+        }
+      }));
     }
     if (prevServerAvailable.current === false && serverAvailable === true) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Reconnected to server', type: 'success' } }));
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          id: 'server-connection-toast',
+          message: 'Reconnected to server',
+          type: 'success'
+        }
+      }));
     }
     prevServerAvailable.current = serverAvailable;
   }, [serverAvailable]);

@@ -17,6 +17,7 @@ export const LabelManagement: React.FC<Props> = ({ targets, onBatchUpdate, userR
   const [editingValue, setEditingValue] = useState<{key: string, oldVal: string} | null>(null);
   const [newValueName, setNewValueName] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState<{type: 'key' | 'value', data: any} | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const [search, setSearch] = useState('');
 
@@ -73,6 +74,7 @@ export const LabelManagement: React.FC<Props> = ({ targets, onBatchUpdate, userR
     if (isReadOnly) return;
     const targetsAffected = targets.filter(t => t.labels.some(l => l.key === key)).length;
     setDeleteConfirmation({ type: 'key', data: { key, targetsAffected } });
+    setDeleteConfirmText('');
   };
 
   const handleRenameValue = () => {
@@ -91,10 +93,11 @@ export const LabelManagement: React.FC<Props> = ({ targets, onBatchUpdate, userR
   const handleDeleteValue = (key: string, value: string) => {
     if (isReadOnly) return;
     setDeleteConfirmation({ type: 'value', data: { key, value } });
+    setDeleteConfirmText('');
   };
 
   const confirmDeletion = () => {
-    if (!deleteConfirmation) return;
+    if (!deleteConfirmation || deleteConfirmText !== 'delete') return;
 
     let updated: Target[];
 
@@ -115,6 +118,7 @@ export const LabelManagement: React.FC<Props> = ({ targets, onBatchUpdate, userR
 
     onBatchUpdate(updated);
     setDeleteConfirmation(null);
+    setDeleteConfirmText('');
   };
 
   return (
@@ -308,16 +312,37 @@ export const LabelManagement: React.FC<Props> = ({ targets, onBatchUpdate, userR
       {deleteConfirmation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
               <div className="bg-[#18181b] w-full max-w-md rounded-xl border border-white/10 shadow-2xl p-6 animate-slide-up">
-                  <h3 className="text-lg font-bold text-white mb-4">Confirm Deletion</h3>
-                    <p className="text-sm text-gray-400 mb-6">
-                        {deleteConfirmation.type === 'key'
-                            ? `Delete the label key "${deleteConfirmation.data.key}" from all ${deleteConfirmation.data.targetsAffected} targets?`
-                            : `Remove label "${deleteConfirmation.data.key}=${deleteConfirmation.data.value}" from all matching targets?`
-                        }
-                    </p>
+                  <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-red-500/10 rounded-lg text-red-500"><AlertTriangle className="w-6 h-6" /></div>
+                        <h3 className="text-xl font-bold text-white">Confirm Deletion</h3>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                      {deleteConfirmation.type === 'key'
+                          ? `This action will permanently delete the label key "${deleteConfirmation.data.key}" from all ${deleteConfirmation.data.targetsAffected} associated targets.`
+                          : `This action will permanently remove the label "${deleteConfirmation.data.key}=${deleteConfirmation.data.value}" from all matching targets.`
+                      }
+                  </p>
+                  <div className="mb-6">
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                          Type <span className="text-red-400 select-none font-bold">delete</span> to confirm
+                      </label>
+                      <input
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          className="w-full bg-[#0f0f11] border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-700 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none"
+                          placeholder="delete"
+                          autoFocus
+                      />
+                  </div>
                   <div className="flex justify-end gap-3">
                       <button onClick={() => setDeleteConfirmation(null)} className="px-4 py-2 text-gray-400 hover:text-white text-sm font-medium">Cancel</button>
-                      <button onClick={confirmDeletion} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-bold">Confirm Delete</button>
+                      <button
+                        onClick={confirmDeletion}
+                        disabled={deleteConfirmText !== 'delete'}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Confirm Delete
+                      </button>
                   </div>
               </div>
           </div>

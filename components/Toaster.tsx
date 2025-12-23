@@ -18,17 +18,33 @@ export const Toaster: React.FC = () => {
         message: detail.message || '',
         type: detail.type || 'info'
       };
-      setToasts(prev => [t, ...prev]);
-      // auto-remove
-      setTimeout(() => {
-        setToasts(prev => prev.filter(x => x.id !== t.id));
-      }, detail.duration || 5000);
+
+      setToasts(prev => {
+        // If a toast with this ID already exists, replace it. Otherwise, add it.
+        const existing = prev.find(toast => toast.id === t.id);
+        if (existing) {
+          return prev.map(toast => toast.id === t.id ? t : toast);
+        }
+        return [t, ...prev];
+      });
+
+      // Auto-remove unless it's a persistent toast
+      if (t.id !== 'server-connection-toast') {
+        setTimeout(() => {
+          setToasts(prev => prev.filter(x => x.id !== t.id));
+        }, detail.duration || 5000);
+      }
     };
+
     window.addEventListener('app-toast', onToast as EventListener);
     return () => window.removeEventListener('app-toast', onToast as EventListener);
   }, []);
 
-  const remove = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+  const remove = (id: string) => {
+    // Prevent persistent toasts from being removed
+    if (id === 'server-connection-toast') return;
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const getIcon = (type?: Toast['type']) => {
     switch(type) {
