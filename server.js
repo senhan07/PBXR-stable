@@ -601,6 +601,8 @@ app.post('/api/prometheus/check', async (req, res) => {
 app.post('/api/prometheus/reload', async (req, res) => {
     try {
         const { url, authMethod, authCredentials } = req.body;
+        console.log(`[RELOAD] Received reload request for URL: ${url}`);
+
         if (!url) {
             return res.status(400).json({ error: 'URL is required for reload' });
         }
@@ -612,6 +614,7 @@ app.post('/api/prometheus/reload', async (req, res) => {
 
         const base = promUrl.replace(/\/$/, '');
         const reloadUrl = `${base}/-/reload`;
+        console.log(`[RELOAD] Proxying reload request to: ${reloadUrl}`);
 
         const headers = {};
         if (authMethod === 'basic' && authCredentials) {
@@ -625,6 +628,8 @@ app.post('/api/prometheus/reload', async (req, res) => {
         if (promRes.ok) {
             res.status(200).json({ success: true });
         } else {
+            const errorBody = await promRes.text();
+            console.error(`[RELOAD] Prometheus responded with status ${promRes.status}: ${errorBody}`);
             res.status(promRes.status).json({ error: `Prometheus reload failed with status ${promRes.status}` });
         }
     } catch (error) {
