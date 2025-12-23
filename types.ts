@@ -34,7 +34,6 @@ export interface Target {
   interval?: string;
   lastScrape?: string;
   lastError?: string;
-  status?: 'up' | 'down' | 'unknown';
   createdAt?: string;
   updatedAt?: string;
 }

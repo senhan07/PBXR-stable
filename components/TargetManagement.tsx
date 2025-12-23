@@ -534,7 +534,6 @@ export const TargetManagement: React.FC<Props> = ({
                       proberIds: [], // Do not import probers for new targets
                       labels: importedLabels || [],
                       groupId: undefined, // Do not import group for new targets
-                      status: 'unknown',
                       enabled: t.enabled ?? false, // Default to disabled if not specified
                       createdAt: now,
                       updatedAt: now
@@ -610,8 +609,7 @@ export const TargetManagement: React.FC<Props> = ({
         if (selectedProbers.length === 0) { window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Please assign at least one prober.', type: 'warning' } })); return; }
         const newTarget: Target = {
             id: editingId || uuid(),
-      name, url, module, proberIds: selectedProbers, labels, 
-      status: 'unknown', enabled: true,
+      name, url, module, proberIds: selectedProbers, labels, enabled: true,
       groupId: selectedGroupId === 'none' ? undefined : selectedGroupId
     };
     if (editingId) onUpdate({ ...newTarget, enabled: targets.find(t => t.id === editingId)?.enabled ?? true }); 

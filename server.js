@@ -638,6 +638,48 @@ app.post('/api/prometheus/reload', async (req, res) => {
     }
 });
 
+// API: Proxy for deleting series from Prometheus
+app.post('/api/prometheus/delete_series', async (req, res) => {
+    try {
+        const { prometheusUrl, matches, authMethod, authCredentials } = req.body;
+        if (!prometheusUrl || !matches || !Array.isArray(matches)) {
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
+
+        let promUrl = prometheusUrl;
+        if (!promUrl.startsWith('http://') && !promUrl.startsWith('https://')) {
+            promUrl = 'http://' + promUrl;
+        }
+
+        const deleteUrl = `${promUrl.replace(/\/$/, '')}/api/v1/admin/tsdb/delete_series`;
+        const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+        if (authMethod === 'basic' && authCredentials) {
+            headers['Authorization'] = 'Basic ' + Buffer.from(authCredentials).toString('base64');
+        } else if (authMethod === 'bearer' && authCredentials) {
+            headers['Authorization'] = 'Bearer ' + authCredentials;
+        }
+
+        const body = new URLSearchParams();
+        matches.forEach(match => body.append('match[]', match));
+
+        const promRes = await fetch(deleteUrl, {
+            method: 'POST',
+            headers: headers,
+            body: body
+        });
+
+        if (promRes.ok) {
+            res.status(204).send();
+        } else {
+            const errorText = await promRes.text();
+            res.status(promRes.status).json({ error: `Prometheus API error: ${errorText}` });
+        }
+    } catch (error) {
+        console.error('Error proxying Prometheus delete_series:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Fallback to index.html for SPA routing
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));

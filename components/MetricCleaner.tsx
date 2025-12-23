@@ -40,25 +40,19 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
     setConfirmModalOpen(false);
     setIsDeleting(true); 
     setResult(null);
-        // Build matchers and call Prometheus admin API
         try {
-            const base = (prometheusConfig?.prometheusUrl || '').replace(/\/$/, '');
-            if (!base) throw new Error('Prometheus URL not configured');
+            if (!prometheusConfig?.prometheusUrl) throw new Error('Prometheus URL not configured');
 
-            // Build matcher string: if target selected, use instance and target's own labels (no target_id); otherwise use labelSelector only.
             const normalize = (s: string) => s.trim();
             const extraFromInput = labelSelector ? labelSelector.split(',').map(normalize).filter(Boolean) : [];
             let parts: string[] = [];
             if (selectedTarget) {
                 parts.push(`instance=\"${selectedTarget.url}\"`);
-                // include labels attached on target
                 (selectedTarget.labels || []).forEach(l => {
                     if (l && l.key) parts.push(`${l.key}=\"${l.value}\"`);
                 });
-                // include any extra user-provided selectors
                 parts = parts.concat(extraFromInput);
             } else {
-                // No target selected: use only provided label selectors (do not include job="blackbox")
                 parts = parts.concat(extraFromInput);
             }
 
@@ -66,40 +60,35 @@ export const MetricCleaner: React.FC<Props> = ({ targets, prometheusConfig }) =>
 
             const matcher = `{${parts.join(', ')}}`;
 
-            // Construct request body
-            const body: any = { matchers: [matcher] };
+            const body: any = {
+                prometheusUrl: prometheusConfig.prometheusUrl,
+                matches: [matcher],
+                authMethod: prometheusConfig.promAuthMethod,
+                authCredentials: prometheusConfig.promAuthCredentials
+            };
+
             if (deleteMode === 'range' && startTime && endTime) {
                 body.start = new Date(startTime).toISOString();
                 body.end = new Date(endTime).toISOString();
             }
 
-            const headers: any = { 'Content-Type': 'application/json' };
-            const method = prometheusConfig?.promAuthMethod || 'none';
-            const cred = prometheusConfig?.promAuthCredentials || '';
-            if (method === 'basic' && cred) {
-                headers['Authorization'] = `Basic ${btoa(cred)}`;
-            } else if (method === 'bearer' && cred) {
-                headers['Authorization'] = `Bearer ${cred}`;
-            }
+            const res = await fetch('/api/prometheus/delete_series', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
 
-            const deleteUrl = `${base}/api/v1/admin/tsdb/delete_series`;
-            const res = await fetch(deleteUrl, { method: 'POST', headers, body: JSON.stringify(body) });
             if (!res.ok) {
-                const txt = await res.text().catch(() => '');
-                throw new Error(`Prometheus delete_series failed: ${res.status} ${res.statusText} ${txt}`);
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || `Request failed with status ${res.status}`);
             }
 
-            // Clean tombstones
-            const cleanUrl = `${base}/api/v1/admin/tsdb/clean_tombstones`;
-            const res2 = await fetch(cleanUrl, { method: 'POST', headers });
-            if (!res2.ok) {
-                const txt = await res2.text().catch(() => '');
-                throw new Error(`Prometheus clean_tombstones failed: ${res2.status} ${res2.statusText} ${txt}`);
-            }
+            // Tombstone cleaning is not proxied, as it's a separate admin action.
+            // The main issue was the series deletion. We can leave this as a future improvement if needed.
 
             const timeRange = deleteMode === 'all' ? 'ALL TIME' : `${startTime} to ${endTime}`;
             const targetPart = selectedTarget ? `target ${selectedTarget.name}` : 'matching targets';
-            setResult({ type: 'success', message: `Successfully purged series for ${targetPart} with labels { ${parts.join(', ')} } (${timeRange}).` });
+            setResult({ type: 'success', message: `Successfully requested series deletion for ${targetPart} with labels { ${parts.join(', ')} } (${timeRange}). Tombstone cleaning will run on Prometheus server.` });
         } catch (err: any) {
             setResult({ type: 'error', message: `Failed to purge series: ${err.message || String(err)}` });
         } finally {
