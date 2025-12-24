@@ -265,7 +265,7 @@ export const UserManagement: React.FC<Props> = ({ users, onAdd, onUpdate, onDele
                         <CustomSelect 
                             options={roleOptions} 
                             value={formData.role || 'viewer'} 
-                            onChange={(v) => setFormData({...formData, role: v as any})} 
+                            onChange={(v) => setFormData({...formData, role: v as any})}
                         />
                     </div>
                 </div>

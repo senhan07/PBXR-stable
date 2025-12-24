@@ -610,7 +610,7 @@ export const TargetManagement: React.FC<Props> = ({
         if (selectedProbers.length === 0) { window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Please assign at least one prober.', type: 'warning' } })); return; }
         const newTarget: Target = {
             id: editingId || uuid(),
-      name, url, module, proberIds: selectedProbers, labels, 
+      name, url, module, proberIds: selectedProbers, labels,
       status: 'unknown', enabled: true,
       groupId: selectedGroupId === 'none' ? undefined : selectedGroupId
     };
@@ -862,7 +862,7 @@ export const TargetManagement: React.FC<Props> = ({
               </div>
 
               {/* Table */}
-              <div ref={tableContainerRef} className="glass-panel rounded-xl overflow-hidden flex flex-col flex-1 mt-4 min-h-0">
+              <div ref={tableContainerRef} className="glass-panel rounded-xl flex flex-col flex-1 mt-4 min-h-0">
                 <div className="overflow-auto flex-1 custom-scrollbar">
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 z-10 bg-[#18181b] border-b border-white/10">

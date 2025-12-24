@@ -344,7 +344,7 @@ const App: React.FC = () => {
   }, [serverAvailable]);
 
   // Auto Logout State
-  const [lastActivity, setLastActivity] = useState(Date.now());
+  const lastActivity = React.useRef(Date.now());
   const [timeLeft, setTimeLeft] = useState<string>('');
 
   // Persistence logic (Server DB + LocalStorage Fallback)
@@ -445,7 +445,9 @@ const App: React.FC = () => {
 
   // --- Auto Logout Logic ---
   useEffect(() => {
-      const handleActivity = () => setLastActivity(Date.now());
+      const handleActivity = () => {
+        lastActivity.current = Date.now();
+      };
       
       // Listeners for activity (excluding mousemove as requested)
       window.addEventListener('mousedown', handleActivity);
@@ -469,13 +471,13 @@ const App: React.FC = () => {
       
       const interval = setInterval(() => {
           const now = Date.now();
-          const elapsed = now - lastActivity;
+          const elapsed = now - lastActivity.current;
           const limit = state.config.autoLogoutMinutes * 60 * 1000;
           const remaining = Math.max(0, limit - elapsed);
           
           if (remaining === 0) {
               dispatch({ type: 'LOGOUT' });
-              setLastActivity(Date.now()); // Reset for next login
+              lastActivity.current = Date.now(); // Reset for next login
           }
           
           const m = Math.floor(remaining / 60000);
@@ -484,7 +486,7 @@ const App: React.FC = () => {
       }, 1000);
       
       return () => clearInterval(interval);
-  }, [state.currentUser, state.config.autoLogoutMinutes, lastActivity]);
+  }, [state.currentUser, state.config.autoLogoutMinutes]);
 
     const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -546,7 +548,7 @@ const App: React.FC = () => {
       setLoginError('');
       setUsername('');
       setPassword('');
-      setLastActivity(Date.now());
+      lastActivity.current = Date.now();
     } catch (err) {
       console.error('Login request failed', err);
       setLoginError('Login failed');
